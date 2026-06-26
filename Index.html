@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArcEditor Pro - 2D/3D Blueprint Tracing Studio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js for Direct PDF Imports -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1ebd9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      user-select: none;
+    }
+    /* Dynamic active classes */
+    .tool-btn.active {
+      background-color: #0284c7 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    }
+    .grid-draft {
+      background-size: 20px 20px;
+      background-image: linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    }
+    /* Soft premium linen-cream to light blue architectural gradient */
+    .studio-gradient {
+      background: linear-gradient(135deg, #fbfaf7 0%, #eef2f7 100%);
+    }
+  </style>
+</head>
+<body class="studio-gradient text-slate-800 overflow-hidden flex flex-col h-screen">
+
+  <!-- Main Header -->
+  <header class="bg-white/80 backdrop-blur border-b border-slate-200/80 px-6 py-3 flex items-center justify-between z-20 shrink-0 shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-sky-600 flex items-center justify-center shadow-lg shadow-sky-600/20">
+        <i class="fa-solid fa-drafting-compass text-white text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-md font-bold tracking-wider text-slate-900">ArcEditor Studio</h1>
+        <p class="text-[11px] text-slate-500 font-semibold tracking-wide">Dynamic 2D/3D Tracing Engine</p>
+      </div>
+    </div>
+
+    <!-- Active Scale Metrics Calibration -->
+    <div class="hidden lg:flex items-center gap-3 bg-slate-100/80 border border-slate-200 px-4 py-1.5 rounded-full text-xs shadow-inner">
+      <span class="text-sky-700 font-bold font-mono"><i class="fa-solid fa-ruler-combined mr-1"></i> Studio Scale:</span>
+      <span id="scaleStatusText" class="text-slate-600 font-semibold">100px = 10 ft</span>
+      <button 
+        onclick="setTool('calibrate')"
+        class="ml-2 text-[10px] px-2.5 py-1 rounded bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-300 shadow-sm transition"
+        title="Draw a line on blueprint of a known length to calibrate scale automatically"
+      >
+        Calibrate Scale
+      </button>
+    </div>
+
+    <!-- Top Action controls -->
+    <div class="flex items-center gap-2">
+      <button onclick="undo()" id="undoBtn" class="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg disabled:opacity-40 shadow-sm" disabled title="Undo (Ctrl+Z)">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+      <button onclick="redo()" id="redoBtn" class="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg disabled:opacity-40 shadow-sm" disabled title="Redo (Ctrl+Y)">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+      <span class="text-slate-300 mx-1">|</span>
+      
+      <!-- Split-screen 3D View Toggle -->
+      <button 
+        onclick="toggle3DView()" id="btn3D"
+        class="px-3.5 py-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold border border-amber-200 rounded-lg shadow-sm flex items-center gap-1.5 transition"
+      >
+        <i class="fa-solid fa-cube animate-pulse"></i> <span>Toggle 3D View</span>
+      </button>
+
+      <button onclick="toggleTutorial(true)" class="px-3 py-1.5 text-xs bg-white hover:bg-slate-50 rounded-lg text-slate-600 border border-slate-200 shadow-sm font-semibold">
+        <i class="fa-regular fa-lightbulb text-amber-500 mr-1"></i> Tutorial
+      </button>
+      <button onclick="loadDemoLayout()" class="px-3 py-1.5 text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-100 rounded-lg font-bold">
+        Load Demo Space
+      </button>
+      <button onclick="clearAllCanvas()" class="px-3 py-1.5 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100 rounded-lg font-bold">
+        Clear Layer
+      </button>
+      <span class="text-slate-300 mx-1">|</span>
+
+      <button onclick="exportToJSON()" class="px-3 py-1.5 text-xs bg-white hover:bg-slate-50 rounded-lg text-slate-600 border border-slate-200 shadow-sm" title="Download editable project file">
+        <i class="fa-solid fa-file-export mr-1 text-slate-400"></i> Save JSON
+      </button>
+      <label class="px-3 py-1.5 text-xs bg-white hover:bg-slate-50 rounded-lg text-slate-600 border border-slate-200 shadow-sm cursor-pointer font-medium">
+        <i class="fa-solid fa-file-import mr-1 text-slate-400"></i> Load JSON
+        <input type="file" accept=".json" onchange="importFromJSON(event)" class="hidden" />
+      </label>
+      
+      <!-- Complex Vector Exporter -->
+      <button onclick="exportToSVG()" class="px-3.5 py-1.5 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 rounded-lg shadow-sm">
+        <i class="fa-solid fa-bezier-curve mr-1"></i> SVG
+      </button>
+      <button onclick="exportToImage()" class="px-4 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-600/10">
+        <i class="fa-solid fa-download mr-1"></i> Export Image
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace Shell -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- Left Hand Architectural Vector Toolbar -->
+    <aside class="w-18 bg-white border-r border-slate-200/80 flex flex-col items-center py-4 gap-4 z-10 shrink-0 shadow-sm">
+      <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tools</span>
+      
+      <!-- Select Pointer -->
+      <button 
+        onclick="setTool('select')" id="tool-select"
+        class="tool-btn active w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Select & Move elements (Shift+Drag on background template moves it)"
+      >
+        <i class="fa-solid fa-arrow-pointer text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Select</span>
+      </button>
+
+      <!-- Pan Workspace -->
+      <button 
+        onclick="setTool('pan')" id="tool-pan"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Pan Canvas View (Hold middle mouse wheel anytime to Pan)"
+      >
+        <i class="fa-solid fa-hand text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Pan</span>
+      </button>
+
+      <div class="w-8 border-t border-slate-100 my-1"></div>
+
+      <!-- Draw Wall -->
+      <button 
+        onclick="setTool('wall')" id="tool-wall"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Draw Vector Walls"
+      >
+        <i class="fa-solid fa-border-all text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Wall</span>
+      </button>
+
+      <!-- Place Window -->
+      <button 
+        onclick="setTool('window')" id="tool-window"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Draw Window Units"
+      >
+        <i class="fa-solid fa-grip-lines text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Window</span>
+      </button>
+
+      <!-- Place Door -->
+      <button 
+        onclick="setTool('door')" id="tool-door"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Stamp Swing Doors"
+      >
+        <i class="fa-solid fa-door-open text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Door</span>
+      </button>
+
+      <!-- Place Furniture -->
+      <button 
+        onclick="setTool('furniture')" id="tool-furniture"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Insert Furniture & Fixtures"
+      >
+        <i class="fa-solid fa-couch text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Object</span>
+      </button>
+
+      <!-- Room Text Label -->
+      <button 
+        onclick="setTool('label')" id="tool-label"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Insert Custom Text Label"
+      >
+        <i class="fa-solid fa-font text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Text</span>
+      </button>
+
+      <!-- Measurement Ruler Tool -->
+      <button 
+        onclick="setTool('measure')" id="tool-measure"
+        class="tool-btn w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+        title="Draw custom Measurement lines"
+      >
+        <i class="fa-solid fa-ruler text-lg"></i>
+        <span class="text-[9px] mt-1 font-bold">Ruler</span>
+      </button>
+    </aside>
+
+    <!-- Central Interactive Canvas Workspace Panel (Supports both 2D and 3D Rendering) -->
+    <main class="flex-1 relative overflow-hidden flex flex-col">
+      <div class="flex-1 relative flex">
+        <!-- 2D Canvas Layer (Linen Tracing Pattern) -->
+        <div id="canvasContainer2D" class="flex-1 relative bg-[#faf8f3] grid-draft transition-all duration-300">
+          <canvas id="draftCanvas" class="absolute inset-0 cursor-crosshair w-full h-full block"></canvas>
+        </div>
+
+        <!-- Real-Time Split-screen 3D View Layer -->
+        <div id="canvasContainer3D" class="w-0 relative bg-slate-900 border-l border-slate-300 transition-all duration-300 overflow-hidden flex flex-col">
+          <div class="absolute top-4 right-4 z-10 flex gap-2">
+            <button onclick="tilt3DCamera(0, -5)" class="w-8 h-8 rounded bg-slate-800 text-white hover:bg-slate-700 text-xs"><i class="fa-solid fa-arrow-up"></i></button>
+            <button onclick="tilt3DCamera(0, 5)" class="w-8 h-8 rounded bg-slate-800 text-white hover:bg-slate-700 text-xs"><i class="fa-solid fa-arrow-down"></i></button>
+            <button onclick="tilt3DCamera(-5, 0)" class="w-8 h-8 rounded bg-slate-800 text-white hover:bg-slate-700 text-xs"><i class="fa-solid fa-arrow-left"></i></button>
+            <button onclick="tilt3DCamera(5, 0)" class="w-8 h-8 rounded bg-slate-800 text-white hover:bg-slate-700 text-xs"><i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          <canvas id="isometricCanvas" class="flex-1 w-full h-full block bg-slate-950"></canvas>
+          <div class="bg-slate-950 border-t border-slate-800 px-4 py-2 text-center text-[10px] text-slate-400 font-mono tracking-wider shrink-0 flex items-center justify-between">
+            <span>REAL-TIME ISOMETRIC VIEWPORT</span>
+            <span>Drag mouse to orbit 3D view</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Action Guidelines HUD Overlay -->
+      <div class="absolute top-4 left-6 z-10 bg-white/95 border border-slate-200/90 px-4 py-2.5 rounded-xl text-xs backdrop-blur max-w-sm pointer-events-none shadow-lg text-slate-700">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-info-circle text-sky-500"></i>
+          <span id="guideHudText" class="font-semibold text-slate-600">Select objects to edit size/rotation, or Shift+Drag to relocate underlay.</span>
+        </div>
+      </div>
+
+      <!-- Viewport Floating controls over canvas bottom left -->
+      <div class="absolute bottom-6 left-6 z-10 flex items-center gap-1.5 bg-white/95 border border-slate-200 p-2 rounded-xl shadow-lg backdrop-blur">
+        <button onclick="zoomCanvas(0.15)" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs transition border border-slate-200" title="Zoom In">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </button>
+        <button onclick="zoomCanvas(-0.15)" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs transition border border-slate-200" title="Zoom Out">
+          <i class="fa-solid fa-magnifying-glass-minus"></i>
+        </button>
+        <button onclick="resetZoom()" id="zoomStatusLabel" class="px-2.5 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs transition border border-slate-200 font-mono" title="Fit to screen">
+          100%
+        </button>
+        <span class="text-slate-200 h-6 w-[1px]"></span>
+        <button 
+          onclick="toggleGridSnap()" id="gridSnapBtn"
+          class="px-3 h-8 rounded-lg text-xs font-bold flex items-center gap-1.5 transition bg-sky-100 text-sky-600 border border-sky-200/80"
+          title="Snap vectors to grid units"
+        >
+          <i class="fa-solid fa-circle-nodes"></i> Snap
+        </button>
+      </div>
+    </main>
+
+    <!-- Right-Hand Properties, Controls & Underlay Upload Board -->
+    <aside class="w-80 bg-white border-l border-slate-200 flex flex-col overflow-y-auto shrink-0 z-10 shadow-lg">
+      
+      <!-- Section 1: Underlay Config -->
+      <div class="p-5 border-b border-slate-100">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-layer-group text-sky-400"></i> 1. Blueprint Underlay
+          </h3>
+          <button onclick="removeUnderlay()" id="removeUnderlayBtn" class="text-[10px] text-red-500 hover:text-red-600 font-bold hidden">Remove</button>
+        </div>
+
+        <!-- File Upload Portal -->
+        <div id="uploadPortal" class="border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 rounded-xl p-4 text-center hover:border-slate-300 transition cursor-pointer relative shadow-inner">
+          <input 
+            type="file" 
+            accept="image/*,application/pdf" 
+            onchange="handleUnderlayFile(event)"
+            class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+          />
+          <div class="flex flex-col items-center gap-2">
+            <div class="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-500">
+              <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+            </div>
+            <p class="text-xs font-bold text-slate-700">Upload Blueprint (PDF/IMG)</p>
+            <p class="text-[10px] text-slate-400 leading-normal px-2">Support Epson, Mazda blueprints</p>
+          </div>
+        </div>
+
+        <!-- Underlay Controls -->
+        <div id="underlayControls" class="space-y-4 hidden">
+          <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p id="underlayFileName" class="text-xs font-semibold text-slate-700 truncate">Blueprint.pdf</p>
+              <p class="text-[10px] text-emerald-600 font-semibold">Active Tracing Layer</p>
+            </div>
+          </div>
+
+          <div class="space-y-3.5 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+            <div class="flex items-center justify-between">
+              <label class="text-slate-500 font-bold">Lock Position</label>
+              <button 
+                onclick="toggleUnderlayLock()" id="underlayLockBtn"
+                class="px-2.5 py-1 text-[10px] font-bold rounded bg-white text-slate-500 hover:text-slate-800 border border-slate-200 shadow-sm transition"
+              >
+                <i class="fa-solid fa-lock-open mr-1"></i> Unlocked
+              </button>
+            </div>
+
+            <!-- Transparency -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-semibold">Transparency</span>
+                <span id="opacityValText" class="text-slate-800 font-bold font-mono">40%</span>
+              </div>
+              <input 
+                type="range" min="0.1" max="1.0" step="0.05" value="0.4" id="opacitySlider"
+                oninput="updateUnderlayProp('opacity', parseFloat(this.value))"
+                class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            <!-- Scale -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-semibold">Scale Multiplier</span>
+                <span id="scaleValText" class="text-slate-800 font-bold font-mono">1.00x</span>
+              </div>
+              <input 
+                type="range" min="0.1" max="3.0" step="0.02" value="1.0" id="scaleSlider"
+                oninput="updateUnderlayProp('scale', parseFloat(this.value))"
+                class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            <!-- Rotation -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-semibold">Rotation Angle</span>
+                <span id="rotationValText" class="text-slate-800 font-bold font-mono">0°</span>
+              </div>
+              <input 
+                type="range" min="-180" max="180" step="1" value="0" id="rotationSlider"
+                oninput="updateUnderlayProp('rotation', parseInt(this.value))"
+                class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            <!-- Position Shifts -->
+            <div class="grid grid-cols-2 gap-2 mt-1">
+              <button onclick="shiftUnderlay(0, -10)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[10px] font-semibold">
+                <i class="fa-solid fa-caret-up mr-1 text-slate-400"></i> Shift Up
+              </button>
+              <button onclick="shiftUnderlay(0, 10)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[10px] font-semibold">
+                <i class="fa-solid fa-caret-down mr-1 text-slate-400"></i> Shift Down
+              </button>
+              <button onclick="shiftUnderlay(-10, 0)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[10px] font-semibold">
+                <i class="fa-solid fa-caret-left mr-1 text-slate-400"></i> Shift Left
+              </button>
+              <button onclick="shiftUnderlay(10, 0)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[10px] font-semibold">
+                <i class="fa-solid fa-caret-right mr-1 text-slate-400"></i> Shift Right
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Active Workspace Tools Inspector / Furniture Library -->
+      <div class="p-5 flex-1 flex flex-col">
+        <div id="inspectorPanel" class="space-y-4 flex-1">
+          <!-- Dynamic settings populated by JS -->
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Calibrate Scale Pop-up Modal -->
+  <div id="calibrateModal" class="fixed inset-0 bg-slate-950/40 flex items-center justify-center p-4 z-50 backdrop-blur-xs hidden">
+    <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center gap-3 text-amber-500">
+        <i class="fa-solid fa-ruler-combined text-2xl"></i>
+        <div>
+          <h3 class="font-bold text-slate-900">Calibrate Blueprint Scale</h3>
+          <p class="text-[10px] text-slate-400">Establish true dimension scaling</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-500 block mb-1">True Distance Length:</label>
+          <div class="flex gap-2">
+            <input 
+              type="number" id="calibrateLengthInput" value="10"
+              class="flex-1 bg-slate-50 text-slate-950 border border-slate-200 px-3 py-2 rounded-lg font-bold focus:outline-none focus:border-sky-500"
+              placeholder="e.g. 10"
+            />
+            <select id="calibrateUnitInput" class="bg-slate-50 text-slate-950 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:outline-none font-bold">
+              <option value="ft">Feet (ft)</option>
+              <option value="m">Meters (m)</option>
+            </select>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-500 italic">
+          ArcEditor recorded the line segment you drew. Applying this scale aligns all vector dimensions automatically.
+        </p>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeCalibrateModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-semibold text-xs">Cancel</button>
+        <button onclick="applyCalibration()" class="flex-1 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg text-xs">Apply Scale</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tutorial Modal Onboard Setup -->
+  <div id="tutorialModal" class="fixed inset-0 bg-slate-950/40 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+    <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5 text-sky-600">
+          <i class="fa-solid fa-wand-magic-sparkles text-xl animate-bounce"></i>
+          <h3 class="font-bold text-slate-900 text-md">Welcome to Blueprint Tracing Studio</h3>
+        </div>
+        <button onclick="toggleTutorial(false)" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-600 leading-relaxed">
+        <p>Follow this simple 3-step tracing workflow to turn scanned images or Epson blueprints into clean, editable vector floor plans:</p>
+        
+        <div class="space-y-3">
+          <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span class="w-5 h-5 rounded-full bg-sky-100 text-sky-600 font-bold flex items-center justify-center shrink-0">1</span>
+            <div>
+              <h4 class="font-bold text-slate-800 mb-0.5">Upload Background Blueprint Underlay</h4>
+              <p class="text-[11px] text-slate-400">Drag & drop or upload any PDF or blueprint image into the right panel. Adjust opacity to transparently trace on top of it.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-600 font-bold flex items-center justify-center shrink-0">2</span>
+            <div>
+              <h4 class="font-bold text-slate-800 mb-0.5">Calibrate Real World Scale</h4>
+              <p class="text-[11px] text-slate-400">Click <strong>Calibrate Scale</strong>. Draw a reference line across a known dimension on your blueprint, and input its size (e.g., a 10 ft doorway).</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center shrink-0">3</span>
+            <div>
+              <h4 class="font-bold text-slate-800 mb-0.5">Trace, Decorate, & View in 3D!</h4>
+              <p class="text-[11px] text-slate-400">Draw over the underlay with the continuous <strong>Wall</strong> and <strong>Window</strong> tools. Press <strong>Toggle 3D View</strong> to see your architectural space extrude into the third dimension!</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-slate-400 italic text-[11px]">
+          Tip: Hold Spacebar/Middle mouse button anytime to PAN around your canvas, scroll your mouse wheel to ZOOM, and tap Delete/Backspace on targeted lines to erase elements!
+        </p>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="toggleTutorial(false)" class="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-600/15">Start Drafting Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State Indicator overlay -->
+  <div id="loaderOverlay" class="fixed inset-0 bg-slate-950/40 flex flex-col items-center justify-center z-50 backdrop-blur-xs hidden">
+    <div class="animate-spin rounded-full h-12 w-12 border-4 border-sky-600 border-t-transparent mb-3"></div>
+    <p class="text-xs text-white font-medium">Processing Architectural File...</p>
+  </div>
+
+  <!-- Active coordinate HUD status footer -->
+  <footer class="bg-white border-t border-slate-200 px-6 py-2 flex justify-between items-center text-[10px] text-slate-400 z-10 font-mono shrink-0 shadow-inner">
+    <div>
+      <span class="font-bold text-slate-500">ArcEditor Engine v3.5 (Light & Fast)</span>
+    </div>
+    <div class="flex items-center gap-4 text-slate-500 font-bold">
+      <span id="gridSnapStatusFooter">Grid snap: Active (20px)</span>
+      <span id="zoomStatusFooter">Zoom factor: 100%</span>
+    </div>
+  </footer>
+
+  <script>
+    // State storage variables
+    let elements = [];
+    let history = [[]];
+    let historyStep = 0;
+    let selectedId = null;
+
+    // Viewport and Tool setup configuration
+    let activeTool = 'select';
+    let snapToGrid = true;
+    const gridSize = 20;
+    let wallThickness = 12;
+    let wallColor = '#1e293b'; // Charcoal for crisp visibility
+
+    // Calibration settings
+    let realWorldScale = { pixels: 100, unit: 'ft', value: 10 };
+
+    // Navigation and Zooming logic (2D Canvas)
+    let zoom = 1.0;
+    let pan = { x: 100, y: 100 };
+    let isDraggingCanvas = false;
+    let dragStart = { x: 0, y: 0 };
+
+    // 3D Isometric View variables
+    let is3DVisible = false;
+    let camera3D = { yaw: 45, pitch: 30 };
+    let isDragging3D = false;
+    let dragStart3D = { x: 0, y: 0 };
+
+    // Blueprint underlay configuration properties
+    let underlayImage = null;
+    let underlayName = '';
+    let underlayScale = 1.0;
+    let underlayOpacity = 0.4;
+    let underlayPos = { x: 150, y: 150 };
+    let underlayRotation = 0; // in degrees
+    let isDraggingUnderlay = false;
+    let isUnderlayLocked = false;
+
+    // Drawing variables
+    let isDrawing = false;
+    let drawStartPoint = null;
+    let drawEndPoint = null;
+    let calibrationPixels = 100;
+
+    // Premium Showroom Object Library items
+    const FURNITURE_TYPES = [
+      { name: 'Vehicle / Car', width: 90, height: 180, icon: 'fa-car', color: '#0ea5e9' },
+      { name: 'Mazda Sports Coupe', width: 85, height: 170, icon: 'fa-car-side', color: '#dc2626' },
+      { name: 'Customer Lounge Sofa', width: 100, height: 40, icon: 'fa-couch', color: '#d97706' },
+      { name: 'Showroom Glass Booth', width: 120, height: 80, icon: 'fa-cubes', color: '#0d9488' },
+      { name: 'Sales Reception Desk', width: 80, height: 40, icon: 'fa-id-badge', color: '#2563eb' },
+      { name: 'Office Armchair', width: 35, height: 35, icon: 'fa-chair', color: '#4b5563' },
+      { name: 'Landscaping Indoor Tree', width: 30, height: 30, icon: 'fa-seedling', color: '#16a34a' },
+      { name: 'Restroom Toilet Unit', width: 20, height: 30, icon: 'fa-toilet', color: '#65a30d' }
+    ];
+    let selectedFurniture = FURNITURE_TYPES[0];
+
+    // Reference pointer hooks
+    const canvas = document.getElementById('draftCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvas3D = document.getElementById('isometricCanvas');
+    const ctx3D = canvas3D.getContext('2d');
+
+    // Startup Init
+    window.onload = function() {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+      }
+
+      setupEventListeners();
+      window.dispatchEvent(new Event('resize'));
+      renderWorkspace();
+      renderInspector();
+    };
+
+    // Event listener configurations
+    function setupEventListeners() {
+      window.addEventListener('resize', () => {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        
+        canvas3D.width = canvas3D.parentElement.clientWidth;
+        canvas3D.height = canvas3D.parentElement.clientHeight;
+
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      });
+
+      // Canvas 2D events
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('wheel', handleMouseWheel, { passive: false });
+
+      // Canvas 3D Orbit drag controls
+      canvas3D.addEventListener('mousedown', (e) => {
+        isDragging3D = true;
+        dragStart3D = { x: e.clientX, y: e.clientY };
+      });
+      canvas3D.addEventListener('mousemove', (e) => {
+        if (!isDragging3D) return;
+        const dx = e.clientX - dragStart3D.x;
+        const dy = e.clientY - dragStart3D.y;
+        camera3D.yaw += dx * 0.5;
+        camera3D.pitch = Math.max(10, Math.min(camera3D.pitch + dy * 0.5, 80));
+        dragStart3D = { x: e.clientX, y: e.clientY };
+        renderIsometric3D();
+      });
+      window.addEventListener('mouseup', () => {
+        isDragging3D = false;
+      });
+
+      // Keyboard delete listener
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (selectedId) {
+            elements = elements.filter(el => el.id !== selectedId);
+            saveStateToHistory();
+            selectedId = null;
+            renderInspector();
+            renderWorkspace();
+            if (is3DVisible) renderIsometric3D();
+          }
+        }
+      });
+    }
+
+    function toggleTutorial(show) {
+      document.getElementById('tutorialModal').classList.toggle('hidden', !show);
+    }
+
+    function toggleLoader(show) {
+      document.getElementById('loaderOverlay').classList.toggle('hidden', !show);
+    }
+
+    // Toggle real-time 3D Isometric View Split-screen
+    function toggle3DView() {
+      is3DVisible = !is3DVisible;
+      const c2d = document.getElementById('canvasContainer2D');
+      const c3d = document.getElementById('canvasContainer3D');
+      const btn = document.getElementById('btn3D');
+
+      if (is3DVisible) {
+        c3d.style.width = '45%';
+        btn.classList.add('bg-amber-500', 'text-white');
+        btn.classList.remove('bg-amber-5,0', 'text-amber-700');
+        setTimeout(() => {
+          canvas3D.width = canvas3D.parentElement.clientWidth;
+          canvas3D.height = canvas3D.parentElement.clientHeight;
+          renderIsometric3D();
+        }, 310);
+      } else {
+        c3d.style.width = '0px';
+        btn.classList.remove('bg-amber-500', 'text-white');
+        btn.classList.add('bg-amber-50', 'text-amber-700');
+      }
+    }
+
+    // Interactive orbiting controls for 3D Camera via code
+    function tilt3DCamera(dyaw, dpitch) {
+      camera3D.yaw += dyaw;
+      camera3D.pitch = Math.max(15, Math.min(camera3D.pitch + dpitch, 80));
+      renderIsometric3D();
+    }
+
+    // Save configuration states to history trace stacks
+    function saveStateToHistory() {
+      const nextHistory = history.slice(0, historyStep + 1);
+      nextHistory.push(JSON.parse(JSON.stringify(elements)));
+      history = nextHistory;
+      historyStep = nextHistory.length - 1;
+
+      document.getElementById('undoBtn').disabled = historyStep === 0;
+      document.getElementById('redoBtn').disabled = historyStep === history.length - 1;
+    }
+
+    function undo() {
+      if (historyStep > 0) {
+        historyStep--;
+        elements = JSON.parse(JSON.stringify(history[historyStep]));
+        selectedId = null;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+        document.getElementById('undoBtn').disabled = historyStep === 0;
+        document.getElementById('redoBtn').disabled = historyStep === history.length - 1;
+      }
+    }
+
+    function redo() {
+      if (historyStep < history.length - 1) {
+        historyStep++;
+        elements = JSON.parse(JSON.stringify(history[historyStep]));
+        selectedId = null;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+        document.getElementById('undoBtn').disabled = historyStep === 0;
+        document.getElementById('redoBtn').disabled = historyStep === history.length - 1;
+      }
+    }
+
+    // Load static templates demo layout values
+    function loadDemoLayout() {
+      elements = [
+        { id: 'w1', type: 'wall', x1: 200, y1: 200, x2: 800, y2: 200, thickness: 12, color: '#1e293b' },
+        { id: 'w2', type: 'wall', x1: 800, y1: 200, x2: 800, y2: 600, thickness: 12, color: '#1e293b' },
+        { id: 'w3', type: 'wall', x1: 800, y1: 600, x2: 200, y2: 600, thickness: 12, color: '#1e293b' },
+        { id: 'w4', type: 'wall', x1: 200, y1: 600, x2: 200, y2: 200, thickness: 12, color: '#1e293b' },
+        { id: 'w5', type: 'wall', x1: 500, y1: 200, x2: 500, y2: 450, thickness: 10, color: '#1e293b' },
+        { id: 'd1', type: 'door', x: 350, y: 200, width: 60, rotation: 0 },
+        { id: 'win1', type: 'window', x1: 600, y1: 200, x2: 700, y2: 200, thickness: 12 },
+        { id: 'win2', type: 'window', x1: 200, y1: 350, x2: 200, y2: 450, thickness: 12 },
+        { id: 'f1', type: 'furniture', name: 'Vehicle / Car', x: 650, y: 400, width: 85, height: 165, rotation: 15, color: '#dc2626' },
+        { id: 'f2', type: 'furniture', name: 'Sales Reception Desk', x: 350, y: 350, width: 70, height: 35, rotation: 90, color: '#2563eb' },
+        { id: 'l1', type: 'label', text: 'SHOWROOM', x: 650, y: 300, fontSize: 18 },
+        { id: 'l2', type: 'label', text: 'SALES DECK', x: 350, y: 480, fontSize: 16 }
+      ];
+      saveStateToHistory();
+      selectedId = null;
+      renderInspector();
+      renderWorkspace();
+      if (is3DVisible) renderIsometric3D();
+    }
+
+    function clearAllCanvas() {
+      if (confirm("Are you sure you want to clear all vector layers? The background blueprint underlay will remain.")) {
+        elements = [];
+        saveStateToHistory();
+        selectedId = null;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      }
+    }
+
+    // Blueprint File input processing
+    async function handleUnderlayFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      toggleLoader(true);
+      underlayName = file.name;
+      document.getElementById('underlayFileName').innerText = underlayName;
+
+      try {
+        if (file.type === "application/pdf") {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const page = await pdf.getPage(1);
+          
+          const viewport = page.getViewport({ scale: 2.0 });
+          const offscreenCanvas = document.createElement('canvas');
+          const context = offscreenCanvas.getContext('2d');
+          offscreenCanvas.height = viewport.height;
+          offscreenCanvas.width = viewport.width;
+
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+          const img = new Image();
+          img.onload = () => {
+            underlayImage = img;
+            toggleLoader(false);
+            initUnderlayConfig();
+          };
+          img.src = offscreenCanvas.toDataURL();
+        } else if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              underlayImage = img;
+              toggleLoader(false);
+              initUnderlayConfig();
+            };
+            img.src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        } else {
+          alert("Unsupported file format. Please upload PDF or image templates.");
+          toggleLoader(false);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to parse blueprint underlay configuration.");
+        toggleLoader(false);
+      }
+    }
+
+    function initUnderlayConfig() {
+      document.getElementById('uploadPortal').classList.add('hidden');
+      document.getElementById('underlayControls').classList.remove('hidden');
+      document.getElementById('removeUnderlayBtn').classList.remove('hidden');
+      
+      underlayScale = 1.0;
+      underlayOpacity = 0.4;
+      underlayRotation = 0;
+      underlayPos = { x: 150, y: 150 };
+
+      // Set sliders UI
+      document.getElementById('opacitySlider').value = 0.4;
+      document.getElementById('scaleSlider').value = 1.0;
+      document.getElementById('rotationSlider').value = 0;
+      document.getElementById('opacityValText').innerText = "40%";
+      document.getElementById('scaleValText').innerText = "1.00x";
+      document.getElementById('rotationValText').innerText = "0°";
+
+      renderWorkspace();
+    }
+
+    function removeUnderlay() {
+      underlayImage = null;
+      underlayName = '';
+      document.getElementById('uploadPortal').classList.remove('hidden');
+      document.getElementById('underlayControls').classList.add('hidden');
+      document.getElementById('removeUnderlayBtn').classList.add('hidden');
+      renderWorkspace();
+    }
+
+    function toggleUnderlayLock() {
+      isUnderlayLocked = !isUnderlayLocked;
+      const btn = document.getElementById('underlayLockBtn');
+      if (isUnderlayLocked) {
+        btn.classList.add('bg-rose-50', 'text-rose-600', 'border-rose-200');
+        btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> Locked`;
+      } else {
+        btn.classList.remove('bg-rose-50', 'text-rose-600', 'border-rose-200');
+        btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> Unlocked`;
+      }
+    }
+
+    function updateUnderlayProp(prop, value) {
+      if (prop === 'opacity') {
+        underlayOpacity = value;
+        document.getElementById('opacityValText').innerText = `${Math.round(value * 100)}%`;
+      } else if (prop === 'scale') {
+        underlayScale = value;
+        document.getElementById('scaleValText').innerText = `${value.toFixed(2)}x`;
+      } else if (prop === 'rotation') {
+        underlayRotation = value;
+        document.getElementById('rotationValText').innerText = `${value}°`;
+      }
+      renderWorkspace();
+    }
+
+    function shiftUnderlay(dx, dy) {
+      underlayPos.x += dx;
+      underlayPos.y += dy;
+      renderWorkspace();
+    }
+
+    function setTool(tool) {
+      activeTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`tool-${tool}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const guideText = {
+        select: 'Select objects to edit size/rotation, or Shift+Drag to relocate underlay.',
+        pan: 'Click and Drag across canvas to pan view workspace.',
+        wall: 'Click and Drag across canvas to build continuous Vector Walls.',
+        window: 'Click and Drag along wall lines to configure glass windows.',
+        door: 'Click to stamp a Swing Door. Target to change directions.',
+        furniture: 'Stamping Component elements. Click on canvas to stamp selected preset.',
+        label: 'Click anywhere on canvas to write structural labels.',
+        measure: 'Drag ruler line over any zone to establish scaled measurements.',
+        calibrate: 'Drag from edge to edge of a known metric line to scale workspace.'
+      };
+      document.getElementById('guideHudText').innerText = guideText[tool] || '';
+      renderInspector();
+    }
+
+    function toggleGridSnap() {
+      snapToGrid = !snapToGrid;
+      const btn = document.getElementById('gridSnapBtn');
+      if (snapToGrid) {
+        btn.classList.add('bg-sky-100', 'text-sky-600', 'border-sky-200/80');
+        btn.classList.remove('bg-slate-50', 'text-slate-500', 'border-slate-200');
+        document.getElementById('gridSnapStatusFooter').innerText = `Grid snap: Active (20px)`;
+      } else {
+        btn.classList.remove('bg-sky-100', 'text-sky-600', 'border-sky-200/80');
+        btn.classList.add('bg-slate-50', 'text-slate-500', 'border-slate-200');
+        document.getElementById('gridSnapStatusFooter').innerText = `Grid snap: Disabled`;
+      }
+    }
+
+    function zoomCanvas(factor) {
+      zoom = Math.max(0.3, Math.min(zoom + factor, 3.0));
+      updateZoomUI();
+    }
+
+    function resetZoom() {
+      zoom = 1.0;
+      pan = { x: 100, y: 100 };
+      updateZoomUI();
+    }
+
+    function updateZoomUI() {
+      document.getElementById('zoomStatusLabel').innerText = `${Math.round(zoom * 100)}%`;
+      document.getElementById('zoomStatusFooter').innerText = `Zoom factor: ${Math.round(zoom * 100)}%`;
+      renderWorkspace();
+    }
+
+    function getCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+      const rawX = (clientX - rect.left - pan.x) / zoom;
+      const rawY = (clientY - rect.top - pan.y) / zoom;
+
+      return {
+        rawX,
+        rawY,
+        x: snapToGrid ? Math.round(rawX / gridSize) * gridSize : rawX,
+        y: snapToGrid ? Math.round(rawY / gridSize) * gridSize : rawY
+      };
+    }
+
+    // Mouse Interactivity handlers
+    function handleMouseDown(e) {
+      if (e.button === 1 || activeTool === 'pan') {
+        isDraggingCanvas = true;
+        dragStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+        return;
+      }
+
+      const coords = getCanvasCoordinates(e);
+
+      if (activeTool === 'select') {
+        // Shift dragging underlay check
+        if (!isUnderlayLocked && underlayImage && (e.shiftKey || e.altKey)) {
+          const w = underlayImage.width * underlayScale;
+          const h = underlayImage.height * underlayScale;
+          if (coords.rawX >= underlayPos.x && coords.rawX <= underlayPos.x + w &&
+              coords.rawY >= underlayPos.y && coords.rawY <= underlayPos.y + h) {
+            isDraggingUnderlay = true;
+            dragStart = { x: coords.rawX - underlayPos.x, y: coords.rawY - underlayPos.y };
+            return;
+          }
+        }
+
+        const targetId = selectElementAtPos(coords.rawX, coords.rawY);
+        selectedId = targetId;
+        renderInspector();
+        renderWorkspace();
+
+        if (targetId) {
+          isDrawing = true;
+          const el = elements.find(item => item.id === targetId);
+          if (el.type === 'wall' || el.type === 'window' || el.type === 'measure') {
+            drawStartPoint = { x: coords.rawX, y: coords.rawY, elX1: el.x1, elY1: el.y1, elX2: el.x2, elY2: el.y2 };
+          } else {
+            drawStartPoint = { x: coords.rawX, y: coords.rawY, elX: el.x, elY: el.y };
+          }
+        }
+      } else if (activeTool === 'wall' || activeTool === 'window' || activeTool === 'measure' || activeTool === 'calibrate') {
+        isDrawing = true;
+        drawStartPoint = { x: coords.x, y: coords.y };
+        drawEndPoint = { x: coords.x, y: coords.y };
+      } else if (activeTool === 'door') {
+        const newDoor = {
+          id: 'door_' + Date.now(),
+          type: 'door',
+          x: coords.x,
+          y: coords.y,
+          width: 50,
+          rotation: 0
+        };
+        elements.push(newDoor);
+        saveStateToHistory();
+        selectedId = newDoor.id;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      } else if (activeTool === 'furniture') {
+        const newFurn = {
+          id: 'furn_' + Date.now(),
+          type: 'furniture',
+          name: selectedFurniture.name,
+          x: coords.x,
+          y: coords.y,
+          width: selectedFurniture.width,
+          height: selectedFurniture.height,
+          rotation: 0,
+          color: selectedFurniture.color
+        };
+        elements.push(newFurn);
+        saveStateToHistory();
+        selectedId = newFurn.id;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      } else if (activeTool === 'label') {
+        const labelText = prompt("Enter room label text:", "OFFICE");
+        if (labelText) {
+          const newLabel = {
+            id: 'lbl_' + Date.now(),
+            type: 'label',
+            text: labelText,
+            x: coords.rawX,
+            y: coords.rawY,
+            fontSize: 14
+          };
+          elements.push(newLabel);
+          saveStateToHistory();
+          selectedId = newLabel.id;
+          renderInspector();
+          renderWorkspace();
+        }
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (isDraggingCanvas) {
+        pan.x = e.clientX - dragStart.x;
+        pan.y = e.clientY - dragStart.y;
+        renderWorkspace();
+        return;
+      }
+
+      const coords = getCanvasCoordinates(e);
+
+      if (isDraggingUnderlay && underlayImage) {
+        underlayPos.x = coords.rawX - dragStart.x;
+        underlayPos.y = coords.rawY - dragStart.y;
+        renderWorkspace();
+        return;
+      }
+
+      if (!isDrawing) return;
+
+      if (activeTool === 'select' && selectedId) {
+        const el = elements.find(item => item.id === selectedId);
+        const dx = coords.rawX - drawStartPoint.x;
+        const dy = coords.rawY - drawStartPoint.y;
+
+        if (el.type === 'wall' || el.type === 'window' || el.type === 'measure') {
+          const snapDx = snapToGrid ? Math.round(dx / gridSize) * gridSize : dx;
+          const snapDy = snapToGrid ? Math.round(dy / gridSize) * gridSize : dy;
+          el.x1 = drawStartPoint.elX1 + snapDx;
+          el.y1 = drawStartPoint.elY1 + snapDy;
+          el.x2 = drawStartPoint.elX2 + snapDx;
+          el.y2 = drawStartPoint.elY2 + snapDy;
+        } else {
+          const snapDx = snapToGrid ? Math.round(dx / gridSize) * gridSize : dx;
+          const snapDy = snapToGrid ? Math.round(dy / gridSize) * gridSize : dy;
+          el.x = snapToGrid ? drawStartPoint.elX + snapDx : drawStartPoint.elX + dx;
+          el.y = snapToGrid ? drawStartPoint.elY + snapDy : drawStartPoint.elY + dy;
+        }
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      } else if (activeTool === 'wall' || activeTool === 'window' || activeTool === 'measure' || activeTool === 'calibrate') {
+        drawEndPoint = { x: coords.x, y: coords.y };
+        renderWorkspace();
+      }
+    }
+
+    function handleMouseUp() {
+      isDraggingCanvas = false;
+      isDraggingUnderlay = false;
+
+      if (!isDrawing) return;
+      isDrawing = false;
+
+      if (activeTool === 'select') {
+        saveStateToHistory();
+      } else if (activeTool === 'wall') {
+        if (getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y) > 10) {
+          const newWall = {
+            id: 'wall_' + Date.now(),
+            type: 'wall',
+            x1: drawStartPoint.x,
+            y1: drawStartPoint.y,
+            x2: drawEndPoint.x,
+            y2: drawEndPoint.y,
+            thickness: wallThickness,
+            color: wallColor
+          };
+          elements.push(newWall);
+          saveStateToHistory();
+          if (is3DVisible) renderIsometric3D();
+        }
+      } else if (activeTool === 'window') {
+        if (getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y) > 10) {
+          const newWindow = {
+            id: 'win_' + Date.now(),
+            type: 'window',
+            x1: drawStartPoint.x,
+            y1: drawStartPoint.y,
+            x2: drawEndPoint.x,
+            y2: drawEndPoint.y,
+            thickness: wallThickness
+          };
+          elements.push(newWindow);
+          saveStateToHistory();
+          if (is3DVisible) renderIsometric3D();
+        }
+      } else if (activeTool === 'measure') {
+        if (getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y) > 10) {
+          const newMeasure = {
+            id: 'meas_' + Date.now(),
+            type: 'measure',
+            x1: drawStartPoint.x,
+            y1: drawStartPoint.y,
+            x2: drawEndPoint.x,
+            y2: drawEndPoint.y
+          };
+          elements.push(newMeasure);
+          saveStateToHistory();
+        }
+      } else if (activeTool === 'calibrate') {
+        const dist = getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y);
+        if (dist > 15) {
+          calibrationPixels = dist;
+          openCalibrateModal();
+        }
+        setTool('select');
+      }
+
+      drawStartPoint = null;
+      drawEndPoint = null;
+      renderWorkspace();
+    }
+
+    function handleMouseWheel(e) {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 0.08 : -0.08;
+      zoomCanvas(zoomFactor);
+    }
+
+    function openCalibrateModal() {
+      document.getElementById('calibrateModal').classList.remove('hidden');
+    }
+
+    function closeCalibrateModal() {
+      document.getElementById('calibrateModal').classList.add('hidden');
+    }
+
+    function applyCalibration() {
+      const val = parseFloat(document.getElementById('calibrateLengthInput').value);
+      const unit = document.getElementById('calibrateUnitInput').value;
+
+      if (!isNaN(val) && val > 0) {
+        realWorldScale = {
+          pixels: calibrationPixels,
+          unit: unit,
+          value: val
+        };
+        document.getElementById('scaleStatusText').innerText = `${Math.round(calibrationPixels)}px = ${val} ${unit}`;
+        closeCalibrateModal();
+        renderWorkspace();
+      }
+    }
+
+    function selectElementAtPos(rawX, rawY) {
+      const threshold = 12;
+
+      for (let i = elements.length - 1; i >= 0; i--) {
+        const el = elements[i];
+        if (el.type === 'wall' || el.type === 'window' || el.type === 'measure') {
+          const dist = pointToLineDistance(rawX, rawY, el.x1, el.y1, el.x2, el.y2);
+          if (dist < threshold) return el.id;
+        } else if (el.type === 'door' || el.type === 'label' || el.type === 'furniture') {
+          const size = el.type === 'furniture' ? Math.max(el.width, el.height) : 40;
+          const dist = getDistance(rawX, rawY, el.x, el.y);
+          if (dist < size) return el.id;
+        }
+      }
+      return null;
+    }
+
+    function pointToLineDistance(x, y, x1, y1, x2, y2) {
+      const A = x - x1;
+      const B = y - y1;
+      const C = x2 - x1;
+      const D = y2 - y1;
+
+      const dot = A * C + B * D;
+      const lenSq = C * C + D * D;
+      let param = -1;
+      if (lenSq !== 0) param = dot / lenSq;
+
+      let xx, yy;
+      if (param < 0) {
+        xx = x1;
+        yy = y1;
+      } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+      } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+      }
+
+      const dx = x - xx;
+      const dy = y - yy;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getDistance(x1, y1, x2, y2) {
+      return Math.sqrt((x2 - x1)**2 + (y2 - y1)**2);
+    }
+
+    function formatDistance(pixelDist) {
+      const ratio = realWorldScale.value / realWorldScale.pixels;
+      const totalVal = pixelDist * ratio;
+      if (realWorldScale.unit === 'ft') {
+        const feet = Math.floor(totalVal);
+        const inches = Math.round((totalVal - feet) * 12);
+        return `${feet}' ${inches}"`;
+      }
+      return `${totalVal.toFixed(2)} m`;
+    }
+
+    // High contrast rendering with crisp shadows and modern designs
+    function renderWorkspace() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(pan.x, pan.y);
+      ctx.scale(zoom, zoom);
+
+      // 1. Blueprint Background Grid
+      drawGrid();
+
+      // 2. Blueprint Background Underlay Tracing paper
+      if (underlayImage) {
+        ctx.save();
+        ctx.globalAlpha = underlayOpacity;
+        const cx = underlayPos.x + (underlayImage.width * underlayScale) / 2;
+        const cy = underlayPos.y + (underlayImage.height * underlayScale) / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate((underlayRotation * Math.PI) / 180);
+        ctx.translate(-cx, -cy);
+
+        ctx.drawImage(underlayImage, underlayPos.x, underlayPos.y, underlayImage.width * underlayScale, underlayImage.height * underlayScale);
+        ctx.restore();
+
+        if (activeTool === 'select' && !isUnderlayLocked) {
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 1.5 / zoom;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(underlayPos.x, underlayPos.y, underlayImage.width * underlayScale, underlayImage.height * underlayScale);
+          ctx.setLineDash([]);
+        }
+      }
+
+      // 3. Render Solid Draft Elements
+      elements.forEach(el => {
+        const isSelected = el.id === selectedId;
+        
+        ctx.save();
+        // Setup crisp shadowing for realistic blueprint elements
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.15)';
+        ctx.shadowBlur = isSelected ? 8 : 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 2;
+
+        ctx.strokeStyle = isSelected ? '#38bdf8' : el.color || '#1e293b';
+        ctx.fillStyle = isSelected ? '#e0f2fe' : el.color || '#f8fafc';
+        ctx.lineWidth = el.thickness || 4;
+
+        if (el.type === 'wall') {
+          // Double layered realistic walls
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(el.x1, el.y1);
+          ctx.lineTo(el.x2, el.y2);
+          ctx.stroke();
+
+          ctx.strokeStyle = isSelected ? '#0284c7' : '#475569';
+          ctx.lineWidth = Math.max(1, el.thickness - 6);
+          ctx.stroke();
+        } else if (el.type === 'window') {
+          // Clean architectural window drawing
+          const dx = el.x2 - el.x1;
+          const dy = el.y2 - el.y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const ux = dx / len;
+          const uy = dy / len;
+          const nx = -uy;
+          const ny = ux;
+          const thick = el.thickness || 12;
+
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+          ctx.strokeStyle = isSelected ? '#38bdf8' : '#0284c7';
+          ctx.lineWidth = 2;
+
+          ctx.beginPath();
+          ctx.moveTo(el.x1 + nx * (thick / 2), el.y1 + ny * (thick / 2));
+          ctx.lineTo(el.x2 + nx * (thick / 2), el.y2 + ny * (thick / 2));
+          ctx.lineTo(el.x2 - nx * (thick / 2), el.y2 - ny * (thick / 2));
+          ctx.lineTo(el.x1 - nx * (thick / 2), el.y1 - ny * (thick / 2));
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Double glass pane details
+          ctx.beginPath();
+          ctx.moveTo(el.x1, el.y1);
+          ctx.lineTo(el.x2, el.y2);
+          ctx.stroke();
+        } else if (el.type === 'door') {
+          ctx.save();
+          ctx.translate(el.x, el.y);
+          ctx.rotate((el.rotation * Math.PI) / 180);
+          ctx.strokeStyle = isSelected ? '#38bdf8' : '#b45309';
+          ctx.lineWidth = 3;
+
+          // Door panel
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, -el.width);
+          ctx.stroke();
+
+          // Swing arc trajectory
+          ctx.strokeStyle = isSelected ? 'rgba(56, 189, 248, 0.4)' : 'rgba(180, 83, 9, 0.3)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.arc(0, 0, el.width, -Math.PI / 2, 0, false);
+          ctx.stroke();
+
+          ctx.restore();
+        } else if (el.type === 'furniture') {
+          ctx.save();
+          ctx.translate(el.x, el.y);
+          ctx.rotate((el.rotation * Math.PI) / 180);
+
+          ctx.fillStyle = isSelected ? '#e0f2fe' : (el.color || '#cbd5e1') + '44';
+          ctx.strokeStyle = isSelected ? '#0284c7' : el.color || '#475569';
+          ctx.lineWidth = 2;
+
+          ctx.beginPath();
+          ctx.roundRect(-el.width / 2, -el.height / 2, el.width, el.height, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          // Detailing shapes for specialized showroom presets
+          if (el.name.includes('Car')) {
+            ctx.strokeStyle = isSelected ? '#0284c7' : el.color || '#475569';
+            ctx.strokeRect(-el.width / 2.5, -el.height / 3.2, el.width / 1.25, el.height / 1.6);
+            ctx.strokeRect(-el.width / 3.5, el.height / 4, el.width / 1.7, el.height / 10);
+            
+            // Tires drawing
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(-el.width / 2 - 4, -el.height / 3.5, 4, 25);
+            ctx.fillRect(el.width / 2, -el.height / 3.5, 4, 25);
+            ctx.fillRect(-el.width / 2 - 4, el.height / 5, 4, 25);
+            ctx.fillRect(el.width / 2, el.height / 5, 4, 25);
+          } else if (el.name.includes('Sofa')) {
+            ctx.strokeRect(-el.width / 2 + 6, -el.height / 2 + 6, el.width - 12, el.height - 12);
+            ctx.beginPath();
+            ctx.moveTo(-el.width / 4, -el.height / 2 + 6);
+            ctx.lineTo(-el.width / 4, el.height / 2 - 6);
+            ctx.moveTo(el.width / 4, -el.height / 2 + 6);
+            ctx.lineTo(el.width / 4, el.height / 2 - 6);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#1e293b';
+          ctx.font = 'bold 9px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(el.name, 0, 3);
+          ctx.restore();
+        } else if (el.type === 'label') {
+          ctx.fillStyle = isSelected ? '#0284c7' : '#0f172a';
+          ctx.font = `bold ${el.fontSize}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.fillText(el.text, el.x, el.y);
+        } else if (el.type === 'measure') {
+          ctx.strokeStyle = isSelected ? '#0284c7' : '#d97706';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(el.x1, el.y1);
+          ctx.lineTo(el.x2, el.y2);
+          ctx.stroke();
+
+          // ticks
+          const dx = el.x2 - el.x1;
+          const dy = el.y2 - el.y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const ux = dx / len;
+          const uy = dy / len;
+          const nx = -uy;
+          const ny = ux;
+          ctx.beginPath();
+          ctx.moveTo(el.x1 - nx * 8, el.y1 - ny * 8);
+          ctx.lineTo(el.x1 + nx * 8, el.y1 + ny * 8);
+          ctx.moveTo(el.x2 - nx * 8, el.y2 - ny * 8);
+          ctx.lineTo(el.x2 + nx * 8, el.y2 + ny * 8);
+          ctx.stroke();
+
+          drawLabelPlate(formatDistance(len), (el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2 - 10, '#d97706');
+        }
+        ctx.restore();
+      });
+
+      // 4. Temporary Line Drawing Layer guides
+      if (isDrawing && drawStartPoint && drawEndPoint) {
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = activeTool === 'wall' ? wallThickness : 2;
+        if (activeTool === 'wall') {
+          ctx.beginPath();
+          ctx.moveTo(drawStartPoint.x, drawStartPoint.y);
+          ctx.lineTo(drawEndPoint.x, drawEndPoint.y);
+          ctx.stroke();
+          const d = getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y);
+          drawLabelPlate(formatDistance(d), (drawStartPoint.x + drawEndPoint.x) / 2, (drawStartPoint.y + drawEndPoint.y) / 2 - 15, '#10b981');
+        } else if (activeTool === 'window') {
+          ctx.strokeStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.moveTo(drawStartPoint.x, drawStartPoint.y);
+          ctx.lineTo(drawEndPoint.x, drawEndPoint.y);
+          ctx.stroke();
+        } else if (activeTool === 'measure' || activeTool === 'calibrate') {
+          ctx.strokeStyle = '#d97706';
+          ctx.beginPath();
+          ctx.moveTo(drawStartPoint.x, drawStartPoint.y);
+          ctx.lineTo(drawEndPoint.x, drawEndPoint.y);
+          ctx.stroke();
+          const d = getDistance(drawStartPoint.x, drawStartPoint.y, drawEndPoint.x, drawEndPoint.y);
+          const label = activeTool === 'calibrate' ? `${Math.round(d)} px` : formatDistance(d);
+          drawLabelPlate(label, (drawStartPoint.x + drawEndPoint.x) / 2, (drawStartPoint.y + drawEndPoint.y) / 2 - 15, '#d97706');
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+      ctx.lineWidth = 0.5;
+
+      const startX = -pan.x / zoom;
+      const startY = -pan.y / zoom;
+      const endX = (canvas.width - pan.x) / zoom;
+      const endY = (canvas.height - pan.y) / zoom;
+
+      const alignedStartX = Math.floor(startX / gridSize) * gridSize;
+      const alignedStartY = Math.floor(startY / gridSize) * gridSize;
+
+      ctx.beginPath();
+      for (let x = alignedStartX; x < endX; x += gridSize) {
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+      }
+      for (let y = alignedStartY; y < endY; y += gridSize) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+      }
+      ctx.stroke();
+
+      // Major grids lines spacing
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      const major = gridSize * 5;
+      const majorStartX = Math.floor(startX / major) * major;
+      const majorStartY = Math.floor(startY / major) * major;
+      for (let x = majorStartX; x < endX; x += major) {
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+      }
+      for (let y = majorStartY; y < endY; y += major) {
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+      }
+      ctx.stroke();
+    }
+
+    function drawLabelPlate(text, x, y, bgCol) {
+      ctx.font = 'bold 11px Arial';
+      const width = ctx.measureText(text).width;
+      ctx.fillStyle = bgCol;
+      ctx.beginPath();
+      ctx.roundRect(x - width / 2 - 6, y - 9, width + 12, 18, 4);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, x, y + 3);
+    }
+
+    // High Performance real-time 3D Isometric Extrusion Engine
+    function renderIsometric3D() {
+      ctx3D.clearRect(0, 0, canvas3D.width, canvas3D.height);
+
+      // Draw grid floor
+      ctx3D.save();
+      const cx3D = canvas3D.width / 2;
+      const cy3D = canvas3D.height / 1.6;
+      ctx3D.translate(cx3D, cy3D);
+
+      const radYaw = (camera3D.yaw * Math.PI) / 180;
+      const radPitch = (camera3D.pitch * Math.PI) / 180;
+
+      // Project coordinates mathematically to 3D Iso space
+      function project3D(x, y, z) {
+        // Center space on coordinates 500, 400
+        const rx = x - 500;
+        const ry = y - 400;
+
+        const rotatedX = rx * Math.cos(radYaw) - ry * Math.sin(radYaw);
+        const rotatedY = rx * Math.sin(radYaw) + ry * Math.cos(radYaw);
+
+        const isoX = rotatedX;
+        const isoY = rotatedY * Math.sin(radPitch) - z * Math.cos(radPitch);
+
+        return { x: isoX, y: isoY };
+      }
+
+      // Draw 3D Ground Base plate
+      ctx3D.fillStyle = '#1e293b';
+      ctx3D.strokeStyle = '#334155';
+      ctx3D.lineWidth = 1;
+      ctx3D.beginPath();
+      const p1 = project3D(0, 0, 0);
+      const p2 = project3D(1000, 0, 0);
+      const p3 = project3D(1000, 800, 0);
+      const p4 = project3D(0, 800, 0);
+      ctx3D.moveTo(p1.x, p1.y);
+      ctx3D.lineTo(p2.x, p2.y);
+      ctx3D.lineTo(p3.x, p3.y);
+      ctx3D.lineTo(p4.x, p4.y);
+      ctx3D.closePath();
+      ctx3D.fill();
+      ctx3D.stroke();
+
+      // Render walls as 3D block prisms
+      const wallHeight = 70; // 3D wall height extrusion
+
+      elements.forEach(el => {
+        if (el.type === 'wall') {
+          const thickness = el.thickness;
+          const dx = el.x2 - el.x1;
+          const dy = el.y2 - el.y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const ux = dx / len;
+          const uy = dy / len;
+          const nx = -uy;
+          const ny = ux;
+
+          // Core 2D wall outline corners
+          const w1 = { x: el.x1 + nx * (thickness / 2), y: el.y1 + ny * (thickness / 2) };
+          const w2 = { x: el.x2 + nx * (thickness / 2), y: el.y2 + ny * (thickness / 2) };
+          const w3 = { x: el.x2 - nx * (thickness / 2), y: el.y2 - ny * (thickness / 2) };
+          const w4 = { x: el.x1 - nx * (thickness / 2), y: el.y1 - ny * (thickness / 2) };
+
+          // Project corners down and up in 3D
+          const baseCorners = [project3D(w1.x, w1.y, 0), project3D(w2.x, w2.y, 0), project3D(w3.x, w3.y, 0), project3D(w4.x, w4.y, 0)];
+          const topCorners = [project3D(w1.x, w1.y, wallHeight), project3D(w2.x, w2.y, wallHeight), project3D(w3.x, w3.y, wallHeight), project3D(w4.x, w4.y, wallHeight)];
+
+          // 3D side faces shading
+          ctx3D.fillStyle = '#334155';
+          ctx3D.strokeStyle = '#475569';
+          ctx3D.lineWidth = 1;
+
+          for (let i = 0; i < 4; i++) {
+            const next = (i + 1) % 4;
+            ctx3D.beginPath();
+            ctx3D.moveTo(baseCorners[i].x, baseCorners[i].y);
+            ctx3D.lineTo(baseCorners[next].x, baseCorners[next].y);
+            ctx3D.lineTo(topCorners[next].x, topCorners[next].y);
+            ctx3D.lineTo(topCorners[i].x, topCorners[i].y);
+            ctx3D.closePath();
+            ctx3D.fill();
+            ctx3D.stroke();
+          }
+
+          // Top Face
+          ctx3D.fillStyle = '#64748b';
+          ctx3D.beginPath();
+          ctx3D.moveTo(topCorners[0].x, topCorners[0].y);
+          ctx3D.lineTo(topCorners[1].x, topCorners[1].y);
+          ctx3D.lineTo(topCorners[2].x, topCorners[2].y);
+          ctx3D.lineTo(topCorners[3].x, topCorners[3].y);
+          ctx3D.closePath();
+          ctx3D.fill();
+          ctx3D.stroke();
+        } else if (el.type === 'furniture') {
+          // Render furniture as solid extruded blocks
+          const furnHeight = 25;
+          const w = el.width;
+          const h = el.height;
+          const rot = (el.rotation * Math.PI) / 180;
+
+          // Local box vertices coordinates
+          const boxCoords = [
+            { lx: -w/2, ly: -h/2 },
+            { lx: w/2, ly: -h/2 },
+            { lx: w/2, ly: h/2 },
+            { lx: -w/2, ly: h/2 }
+          ];
+
+          // Rotate and translate to absolute 2D positions
+          const absPoints = boxCoords.map(bc => {
+            const rx = bc.lx * Math.cos(rot) - bc.ly * Math.sin(rot);
+            const ry = bc.lx * Math.sin(rot) + bc.ly * Math.cos(rot);
+            return { x: el.x + rx, y: el.y + ry };
+          });
+
+          const base3D = absPoints.map(p => project3D(p.x, p.y, 0));
+          const top3D = absPoints.map(p => project3D(p.x, p.y, furnHeight));
+
+          // Shading side panels
+          ctx3D.fillStyle = el.color ? el.color + 'aa' : '#475569';
+          ctx3D.strokeStyle = '#1e293b';
+
+          for (let i = 0; i < 4; i++) {
+            const next = (i + 1) % 4;
+            ctx3D.beginPath();
+            ctx3D.moveTo(base3D[i].x, base3D[i].y);
+            ctx3D.lineTo(base3D[next].x, base3D[next].y);
+            ctx3D.lineTo(top3D[next].x, top3D[next].y);
+            ctx3D.lineTo(top3D[i].x, top3D[i].y);
+            ctx3D.closePath();
+            ctx3D.fill();
+            ctx3D.stroke();
+          }
+
+          // Top face
+          ctx3D.fillStyle = el.color || '#cbd5e1';
+          ctx3D.beginPath();
+          ctx3D.moveTo(top3D[0].x, top3D[0].y);
+          ctx3D.lineTo(top3D[1].x, top3D[1].y);
+          ctx3D.lineTo(top3D[2].x, top3D[2].y);
+          ctx3D.lineTo(top3D[3].x, top3D[3].y);
+          ctx3D.closePath();
+          ctx3D.fill();
+          ctx3D.stroke();
+        } else if (el.type === 'window') {
+          // Render window segments as bright glowing portals
+          const base1 = project3D(el.x1, el.y1, 20);
+          const base2 = project3D(el.x2, el.y2, 20);
+          const top1 = project3D(el.x1, el.y1, 55);
+          const top2 = project3D(el.x2, el.y2, 55);
+
+          ctx3D.strokeStyle = '#38bdf8';
+          ctx3D.fillStyle = 'rgba(56, 189, 248, 0.4)';
+          ctx3D.lineWidth = 2;
+          ctx3D.beginPath();
+          ctx3D.moveTo(base1.x, base1.y);
+          ctx3D.lineTo(base2.x, base2.y);
+          ctx3D.lineTo(top2.x, top2.y);
+          ctx3D.lineTo(top1.x, top1.y);
+          ctx3D.closePath();
+          ctx3D.fill();
+          ctx3D.stroke();
+        }
+      });
+
+      ctx3D.restore();
+    }
+
+    // Property configuration panel setup
+    function renderInspector() {
+      const panel = document.getElementById('inspectorPanel');
+      const activeEl = elements.find(el => el.id === selectedId);
+
+      if (selectedId && activeEl) {
+        let content = `
+          <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-sky-500"></i> Element Properties
+          </h3>
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-4 text-xs">
+            <div>
+              <span class="text-slate-500 font-bold block mb-1">Element Type:</span>
+              <span class="font-bold text-white bg-slate-800 px-2.5 py-1 rounded inline-block text-[10px] uppercase">${activeEl.type}</span>
+            </div>
+        `;
+
+        if (activeEl.type === 'wall') {
+          content += `
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-bold">Wall Thickness</span>
+                <span class="text-slate-800 font-bold">${activeEl.thickness} px</span>
+              </div>
+              <input type="range" min="4" max="32" value="${activeEl.thickness}" oninput="updateActiveElement('thickness', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+            </div>
+            <div>
+              <span class="text-slate-500 font-bold block mb-2">Wall Color:</span>
+              <div class="flex gap-2">
+                ${['#1e293b', '#475569', '#64748b', '#0284c7'].map(c => `
+                  <button onclick="updateActiveElement('color', '${c}')" class="w-6 h-6 rounded-full border ${activeEl.color === c ? 'border-sky-500 scale-110' : 'border-transparent'}" style="background-color: ${c}"></button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else if (activeEl.type === 'door') {
+          content += `
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-bold">Door Width</span>
+                <span class="text-slate-800 font-bold">${activeEl.width} px</span>
+              </div>
+              <input type="range" min="30" max="120" value="${activeEl.width}" oninput="updateActiveElement('width', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+            </div>
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-bold">Swing Rotation</span>
+                <span class="text-slate-800 font-bold">${activeEl.rotation}°</span>
+              </div>
+              <input type="range" min="0" max="360" step="45" value="${activeEl.rotation}" oninput="updateActiveElement('rotation', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+            </div>
+          `;
+        } else if (activeEl.type === 'furniture') {
+          content += `
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-bold">Component Angle</span>
+                <span class="text-slate-800 font-bold">${activeEl.rotation}°</span>
+              </div>
+              <input type="range" min="0" max="360" step="5" value="${activeEl.rotation}" oninput="updateActiveElement('rotation', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="changeObjectDimensions(-10, 0)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-bold">Width -10</button>
+              <button onclick="changeObjectDimensions(10, 0)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-bold">Width +10</button>
+              <button onclick="changeObjectDimensions(0, -10)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-bold">Height -10</button>
+              <button onclick="changeObjectDimensions(0, 10)" class="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-bold">Height +10</button>
+            </div>
+          `;
+        } else if (activeEl.type === 'label') {
+          content += `
+            <div>
+              <span class="text-slate-500 font-bold block mb-1">Text Value:</span>
+              <input type="text" value="${activeEl.text}" oninput="updateActiveElement('text', this.value)" class="w-full bg-white border border-slate-200 text-slate-900 px-3 py-2 rounded-lg font-bold" />
+            </div>
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-slate-500 font-bold">Font Size</span>
+                <span class="text-slate-800 font-bold">${activeEl.fontSize} px</span>
+              </div>
+              <input type="range" min="10" max="32" value="${activeEl.fontSize}" oninput="updateActiveElement('fontSize', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+            </div>
+          `;
+        }
+
+        content += `
+            <button onclick="deleteActiveElement()" class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 transition mt-2">
+              <i class="fa-solid fa-trash-can"></i> Delete Vector Element
+            </button>
+          </div>
+        `;
+        panel.innerHTML = content;
+      } else {
+        // Global presets selectors
+        let content = ``;
+
+        if (activeTool === 'furniture') {
+          content += `
+            <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3">
+              <i class="fa-solid fa-couch text-indigo-500"></i> Furniture Presets
+            </h3>
+            <div class="grid grid-cols-2 gap-2">
+          `;
+          FURNITURE_TYPES.forEach(f => {
+            content += `
+              <button onclick="selectFurnitureType('${f.name}')" class="p-2.5 bg-white hover:bg-slate-50 text-left rounded-lg border ${selectedFurniture.name === f.name ? 'border-sky-500 bg-sky-50 text-slate-800 font-bold shadow-sm' : 'border-slate-200 text-slate-500'} text-xs truncate">
+                <i class="fa-solid ${f.icon} mr-1.5 text-lg" style="color: ${f.color}"></i> ${f.name}
+              </button>
+            `;
+          });
+          content += `</div>`;
+        } else if (activeTool === 'wall') {
+          content += `
+            <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-3">Drafting Walls</h3>
+            <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3.5 text-xs">
+              <div>
+                <div class="flex justify-between mb-1.5">
+                  <span class="text-slate-500 font-bold">Default Thickness</span>
+                  <span class="text-slate-800 font-bold font-mono">${wallThickness} px</span>
+                </div>
+                <input type="range" min="6" max="24" value="${wallThickness}" oninput="updateWallDefaults('thickness', parseInt(this.value))" class="w-full accent-sky-600 bg-slate-200 h-1.5 rounded" />
+              </div>
+            </div>
+          `;
+        } else {
+          content += `
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3.5 text-xs">
+              <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-question text-sky-500"></i> Tracing HUD Guide
+              </h4>
+              <p class="text-slate-500 leading-relaxed text-[11px]">
+                Click vector paths inside the viewport to dynamically scale widths, heights, rotations, labels or colors. Double tap background underlay elements to shift positioning.
+              </p>
+            </div>
+          `;
+        }
+
+        panel.innerHTML = content;
+      }
+    }
+
+    function selectFurnitureType(name) {
+      selectedFurniture = FURNITURE_TYPES.find(f => f.name === name);
+      renderInspector();
+    }
+
+    function updateActiveElement(prop, val) {
+      const el = elements.find(item => item.id === selectedId);
+      if (el) {
+        el[prop] = val;
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      }
+    }
+
+    function changeObjectDimensions(dw, dh) {
+      const el = elements.find(item => item.id === selectedId);
+      if (el) {
+        el.width = Math.max(10, el.width + dw);
+        el.height = Math.max(10, el.height + dh);
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      }
+    }
+
+    function updateWallDefaults(prop, val) {
+      if (prop === 'thickness') wallThickness = val;
+      renderInspector();
+    }
+
+    function deleteActiveElement() {
+      if (selectedId) {
+        elements = elements.filter(el => el.id !== selectedId);
+        saveStateToHistory();
+        selectedId = null;
+        renderInspector();
+        renderWorkspace();
+        if (is3DVisible) renderIsometric3D();
+      }
+    }
+
+    // Save and Load Draft data functions
+    function exportToJSON() {
+      const payload = {
+        elements,
+        realWorldScale,
+        underlayScale,
+        underlayPos,
+        underlayOpacity,
+        underlayRotation
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload));
+      const link = document.createElement('a');
+      link.download = `Architectural_Draft_${Date.now()}.json`;
+      link.href = dataStr;
+      link.click();
+    }
+
+    function importFromJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (data.elements) {
+            elements = data.elements;
+            saveStateToHistory();
+          }
+          if (data.realWorldScale) {
+            realWorldScale = data.realWorldScale;
+            document.getElementById('scaleStatusText').innerText = `${Math.round(realWorldScale.pixels)}px = ${realWorldScale.value} ${realWorldScale.unit}`;
+          }
+          if (data.underlayScale) underlayScale = data.underlayScale;
+          if (data.underlayPos) underlayPos = data.underlayPos;
+          if (data.underlayOpacity) underlayOpacity = data.underlayOpacity;
+          if (data.underlayRotation) underlayRotation = data.underlayRotation;
+          
+          renderInspector();
+          renderWorkspace();
+          if (is3DVisible) renderIsometric3D();
+        } catch (err) {
+          alert("Error parsing file. Invalid JSON draft data.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Complex Architectural SVG Vector Export
+    function exportToSVG() {
+      let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="100%" height="100%" style="background-color: #fdfbf7;">`;
+
+      // Draw vector walls, doors, windows cleanly
+      elements.forEach(el => {
+        if (el.type === 'wall') {
+          svgContent += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="${el.color || '#1e293b'}" stroke-width="${el.thickness}" stroke-linecap="round" />`;
+        } else if (el.type === 'window') {
+          svgContent += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="#0284c7" stroke-width="${el.thickness || 12}" opacity="0.6" />`;
+        } else if (el.type === 'door') {
+          svgContent += `<g transform="translate(${el.x}, ${el.y}) rotate(${el.rotation})">
+            <line x1="0" y1="0" x2="0" y2="-${el.width}" stroke="#b45309" stroke-width="3" />
+            <path d="M 0,-${el.width} A ${el.width} ${el.width} 0 0 1 ${el.width},0" fill="none" stroke="#b45309" stroke-width="1" stroke-dasharray="3,3" />
+          </g>`;
+        } else if (el.type === 'furniture') {
+          svgContent += `<rect x="${el.x - el.width / 2}" y="${el.y - el.height / 2}" width="${el.width}" height="${el.height}" rx="6" fill="${el.color || '#cbd5e1'}" opacity="0.4" stroke="${el.color || '#1e293b'}" stroke-width="2" transform="rotate(${el.rotation}, ${el.x}, ${el.y})" />`;
+        } else if (el.type === 'label') {
+          svgContent += `<text x="${el.x}" y="${el.y}" fill="#0f172a" font-family="Arial" font-size="${el.fontSize}" font-weight="bold" text-anchor="middle">${el.text}</text>`;
+        } else if (el.type === 'measure') {
+          svgContent += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="#d97706" stroke-width="1.5" />`;
+        }
+      });
+
+      svgContent += `</svg>`;
+
+      const svgBlob = new Blob([svgContent], {type: "image/svg+xml;charset=utf-8"});
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = svgUrl;
+      downloadLink.download = `Architectural_Blueprint_${Date.now()}.svg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+
+    // Export Canvas content to pristine high-resolution PNG
+    function exportToImage() {
+      const oldSelected = selectedId;
+      selectedId = null;
+      renderWorkspace();
+
+      setTimeout(() => {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Architectural_Draft_${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+
+        selectedId = oldSelected;
+        renderWorkspace();
+      }, 100);
+    }
+  </script>
+</body>
+</html>
